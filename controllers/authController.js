@@ -163,13 +163,12 @@ module.exports.login = async function login(req, res, next) {
     await invalidateOldSessions(user.user_id);
     const token = await createSession({ user, ip: ipAddr });
 
-    res.cookie(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: COOKIE_SECURE,
-      sameSite: COOKIE_SAMESITE,
-      maxAge: COOKIE_MAX_AGE_MS,
-      path: "/",
-    });
+    res.cookie("token", token, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
 
     return res.json({
       success: true,
