@@ -15,6 +15,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const bankRoutes = require("./routes/bankRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
+const ownerRoutes = require("./routes/ownerRoutes");
 const { notFound } = require("./middleware/errorMiddleware");
 const { globalErrorHandler } = require("./middleware/errorHandler");
 const { startLoanStatusJob } = require("./jobs/loanStatusJob");
@@ -57,6 +58,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/bank", bankRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/owner", ownerRoutes);
 
 app.use(notFound);
 app.use(globalErrorHandler);

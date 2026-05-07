@@ -26,7 +26,13 @@ module.exports.listAnnouncements = async function listAnnouncements(req, res, ne
   try {
     const limitRaw = Number(req.query?.limit || 10);
     const limit = Math.min(50, Math.max(1, limitRaw || 10));
-    const data = await Announcement.find({}).sort({ created_at: -1 }).limit(limit).lean();
+    const now = new Date();
+    const data = await Announcement.find({
+      $or: [{ expires_at: null }, { expires_at: { $gt: now } }],
+    })
+      .sort({ pinned: -1, priority: -1, created_at: -1 })
+      .limit(limit)
+      .lean();
     return res.json({ success: true, data });
   } catch (err) {
     return next(err);
