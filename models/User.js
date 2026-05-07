@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true, index: true },
     email: { type: String, required: true },
     password_hash: { type: String, required: true },
+    // Website/Dashboard password (separate from AuthCore password_hash)
+    web_password_hash: { type: String, default: null },
 
     // Denormalized balances for dashboard convenience (authoritative balances live in EconomyAccount/BankAccount)
     wallet: { type: Number, default: 0 },

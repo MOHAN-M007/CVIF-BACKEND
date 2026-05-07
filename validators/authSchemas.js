@@ -24,3 +24,8 @@ module.exports.minecraftSyncSchema = z.object({
   password_encryption: z.string().trim().min(1).max(50).optional(),
   ip: z.string().trim().min(1).max(100).optional(),
 });
+
+module.exports.setWebPasswordSchema = z.object({
+  username: usernameSchema,
+  newPassword: z.string().min(6, "password too short").max(200),
+});

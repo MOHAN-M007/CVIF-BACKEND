@@ -18,6 +18,7 @@ const announcementRoutes = require("./routes/announcementRoutes");
 const { notFound } = require("./middleware/errorMiddleware");
 const { globalErrorHandler } = require("./middleware/errorHandler");
 const { startLoanStatusJob } = require("./jobs/loanStatusJob");
+const { seedAdminUser } = require("./config/adminSeed");
 
 const app = express();
 
@@ -64,6 +65,10 @@ const port = Number(process.env.PORT || 3000);
 
 connectDb()
   .then(() => {
+    seedAdminUser().catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error("[SEED] Failed to seed admin user:", err);
+    });
     startLoanStatusJob();
     app.listen(port, () => {
       // eslint-disable-next-line no-console

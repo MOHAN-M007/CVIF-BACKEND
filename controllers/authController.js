@@ -38,7 +38,7 @@ function newUserId() {
 }
 
 function buildTokenPayload(user) {
-  return { user_id: user.user_id, username: user.username };
+  return { user_id: user.user_id, username: user.username, role: user.role || "player" };
 }
 
 async function invalidateOldSessions(userId) {
@@ -128,7 +128,11 @@ module.exports.login = async function login(req, res, next) {
       return tooMany(res, "account locked. try again later");
     }
 
-    const match = await bcrypt.compare(password, user.password_hash);
+    if (!user.web_password_hash) {
+      return unauthorized(res, "website password not set");
+    }
+
+    const match = await bcrypt.compare(password, user.web_password_hash);
     if (!match) {
       user.failed_attempts = (user.failed_attempts || 0) + 1;
 
@@ -167,7 +171,40 @@ module.exports.login = async function login(req, res, next) {
       path: "/",
     });
 
-    return res.json({ success: true, token, user_id: user.user_id });
+    return res.json({
+      success: true,
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        role: user.role || "player",
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+module.exports.setWebPassword = async function setWebPassword(req, res, next) {
+  try {
+    const { username, newPassword } = req.body || {};
+
+    if (!username || typeof username !== "string") {
+      return badRequest(res, "username is required");
+    }
+    if (!newPassword || typeof newPassword !== "string") {
+      return badRequest(res, "newPassword is required");
+    }
+    if (newPassword.length < 6) {
+      return badRequest(res, "password too short");
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ success: false, message: "user not found" });
+
+    user.web_password_hash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    return res.json({ success: true });
   } catch (err) {
     return next(err);
   }
@@ -352,15 +389,11 @@ module.exports.minecraftSync = async function minecraftSync(req, res, next) {
       mongoSession.endSession();
     }
 
+    // eslint-disable-next-line no-console
     console.log(
-  `[CVIF SYNC] user_id=${resultUser.user_id} minecraft_uuid=${mcUuid} username=${cleanUsername}`
-);
-
-return res.json({
-  success: true,
-  token,
-  user_id: resultUser.user_id,
-});
+      `[CVIF SYNC] user_id=${resultUser.user_id} minecraft_uuid=${mcUuid} username=${resultUser.username}`
+    );
+    return res.json({ success: true, token, user_id: resultUser.user_id });
   } catch (err) {
     if (err && err.statusCode) {
       return res.status(err.statusCode).json({ success: false, message: err.message });
