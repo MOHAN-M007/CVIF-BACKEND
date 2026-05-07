@@ -165,3 +165,4 @@ Owner setup CLI examples:
 
 Audit logging:
 - Role changes and owner setup write to `AdminAuditLog`.
+\n\n## AuthCore Bridge (Minecraft)\n\n### POST /api/auth/minecraft-sync\nCalled by the Fabric mod after AuthCore authentication to create/update a CVIF user and return a CVIF session token.\n\nRequired env for dashboard cookies (cross-domain):\n- CORS_ORIGINS=comma,separated,origins\n- COOKIE_SAMESITE=none\n- COOKIE_SECURE=true\n\n

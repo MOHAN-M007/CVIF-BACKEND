@@ -4,6 +4,7 @@ const express = require("express");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 
 const connectDb = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
@@ -24,6 +25,26 @@ app.set("trust proxy", true);
 app.use(helmet());
 app.use(express.json({ limit: "50kb" }));
 app.use(cookieParser());
+
+const corsOrigins = String(process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      if (corsOrigins.length === 0) {
+        // Dev fallback: allow any origin. For production, set CORS_ORIGINS.
+        return cb(null, true);
+      }
+      return cb(null, corsOrigins.includes(origin));
+    },
+    credentials: true,
+  })
+);
+
 app.use(morgan("combined"));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -54,5 +75,3 @@ connectDb()
     console.error("Failed to start server:", err);
     process.exit(1);
   });
-
-
