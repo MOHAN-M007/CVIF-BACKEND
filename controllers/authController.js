@@ -352,7 +352,15 @@ module.exports.minecraftSync = async function minecraftSync(req, res, next) {
       mongoSession.endSession();
     }
 
-    console.log([CVIF SYNC] user_id= minecraft_uuid= username=);\n    return res.json({ success: true, token, user_id: resultUser.user_id });
+    console.log(
+  `[CVIF SYNC] user_id=${resultUser.user_id} minecraft_uuid=${mcUuid} username=${cleanUsername}`
+);
+
+return res.json({
+  success: true,
+  token,
+  user_id: resultUser.user_id,
+});
   } catch (err) {
     if (err && err.statusCode) {
       return res.status(err.statusCode).json({ success: false, message: err.message });
