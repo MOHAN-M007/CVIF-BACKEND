@@ -255,14 +255,74 @@ module.exports.me = async function me(req, res, next) {
 
 module.exports.logout = async function logout(req, res, next) {
   try {
-    // best-effort cookie clear
-    
+    // Clear session from database
+    if (req.user && req.user.token) {
+      await Session.deleteOne({ session_token: req.user.token });
+    }
+
+    // Clear cookie
     res.clearCookie(COOKIE_NAME, {
-  httpOnly: true,
-  secure: COOKIE_SECURE,
-  sameSite: COOKIE_SAMESITE,
-  path: "/",
-});
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAMESITE,
+      path: "/",
+    });
+
+    return res.json({ success: true, message: "logged out successfully" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+module.exports.refresh = async function refresh(req, res, next) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "authentication required",
+        code: "UNAUTHORIZED",
+      });
+    }
+
+    const user = await User.findOne({ user_id: req.user.user_id });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "user not found",
+        code: "USER_NOT_FOUND",
+      });
+    }
+
+    // Detect IP for session
+    const ipAddr = normalizeIp(
+      req.headers["x-forwarded-for"] ||
+      req.ip ||
+      "unknown"
+    );
+
+    // Create new session
+    const token = await createSession({
+      user,
+      ip: ipAddr,
+    });
+
+    // Set new cookie
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAMESITE,
+      maxAge: COOKIE_MAX_AGE_MS,
+      path: "/",
+    });
+
+    return res.json({
+      success: true,
+      user: {
+        user_id: user.user_id,
+        username: user.username,
+        role: user.role || "player",
+      },
+    });
   } catch (err) {
     return next(err);
   }

@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { register, login, me, logout, minecraftSync, setWebPassword } = require("../controllers/authController");
+const { register, login, me, logout, refresh, minecraftSync, setWebPassword } = require("../controllers/authController");
 const { loginLimiter, registerLimiter, authLimiter } = require("../middleware/rateLimitMiddleware");
 const { requireSession } = require("../middleware/sessionAuthMiddleware");
 const { validateBody } = require("../middleware/validate");
@@ -14,5 +14,6 @@ router.post("/minecraft-sync", authLimiter, validateBody(minecraftSyncSchema), m
 router.post("/set-web-password", authLimiter, validateBody(setWebPasswordSchema), setWebPassword);
 router.get("/me", requireSession, me);
 router.post("/logout", requireSession, logout);
+router.post("/refresh", requireSession, authLimiter, refresh);
 
 module.exports = router;
