@@ -108,21 +108,27 @@ module.exports.register = async function register(req, res, next) {
 
 module.exports.login = async function login(req, res, next) {
   try {
-    const { username, password, ip } = req.body || {};
-    const ipAddr = normalizeIp(ip || req.ip);
+    const { username, password } = req.body || {};
+
+    const ipAddr = normalizeIp(
+      req.headers["x-forwarded-for"] ||
+      req.ip ||
+      "unknown"
+    );
 
     if (!username || typeof username !== "string") {
       return badRequest(res, "username is required");
     }
+
     if (!password || typeof password !== "string") {
       return badRequest(res, "password is required");
     }
-    if (!ipAddr) {
-      return badRequest(res, "ip address is required");
-    }
 
     const user = await User.findOne({ username });
-    if (!user) return unauthorized(res, "invalid username or password");
+
+    if (!user) {
+      return unauthorized(res, "invalid username or password");
+    }
 
     if (user.lock_until && user.lock_until.getTime() > Date.now()) {
       return tooMany(res, "account locked. try again later");
@@ -132,43 +138,65 @@ module.exports.login = async function login(req, res, next) {
       return unauthorized(res, "website password not set");
     }
 
-    const match = await bcrypt.compare(password, user.web_password_hash);
+    const match = await bcrypt.compare(
+      password,
+      user.web_password_hash
+    );
+
     if (!match) {
       user.failed_attempts = (user.failed_attempts || 0) + 1;
 
       await applyFailureDelay(user.failed_attempts);
 
       if (user.failed_attempts >= 5) {
-        user.lock_until = new Date(Date.now() + 10 * 60 * 1000);
+        user.lock_until = new Date(
+          Date.now() + 10 * 60 * 1000
+        );
+
         user.failed_attempts = 0;
       }
 
       await user.save();
-      return unauthorized(res, "invalid username or password");
+
+      return unauthorized(
+        res,
+        "invalid username or password"
+      );
     }
 
-    // success: reset lock state
+    // RESET LOCK STATE
     user.failed_attempts = 0;
     user.lock_until = null;
 
     const isNewIp = !user.ips.includes(ipAddr);
+
     if (isNewIp) {
       user.ips.push(ipAddr);
-      // log-only flag per spec
-      // eslint-disable-next-line no-console
-      console.log(`[IP] New IP for ${user.username}: ${ipAddr}`);
+
+      console.log(
+        `[IP] New IP for ${user.username}: ${ipAddr}`
+      );
     }
+
     await user.save();
 
+    // REMOVE OLD SESSIONS
     await invalidateOldSessions(user.user_id);
-    const token = await createSession({ user, ip: ipAddr });
 
-    res.cookie("token", token, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+    // CREATE NEW SESSION
+    const token = await createSession({
+      user,
+      ip: ipAddr,
+    });
+
+    // IMPORTANT COOKIE FIX
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: COOKIE_SECURE,
+      sameSite: COOKIE_SAMESITE,
+      maxAge: COOKIE_MAX_AGE_MS,
+      path: "/",
+    });
 
     return res.json({
       success: true,
@@ -228,8 +256,13 @@ module.exports.me = async function me(req, res, next) {
 module.exports.logout = async function logout(req, res, next) {
   try {
     // best-effort cookie clear
-    res.clearCookie(COOKIE_NAME, { path: "/" });
-    return res.json({ success: true });
+    
+    res.clearCookie(COOKIE_NAME, {
+  httpOnly: true,
+  secure: COOKIE_SECURE,
+  sameSite: COOKIE_SAMESITE,
+  path: "/",
+});
   } catch (err) {
     return next(err);
   }
